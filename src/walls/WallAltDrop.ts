@@ -10,10 +10,15 @@ class _WallAltDrop {
 
 	private _visible = false;
 	private ring = new PIXI.Graphics();
+	private currentWall: Wall;
 
 	init() {
+		let _this = this;
 		libWrapper.register(ARCHITECT.MOD_NAME, 'Wall.prototype._onDragLeftMove', this._handleDragMove.bind(this), 'WRAPPER');
-		libWrapper.register(ARCHITECT.MOD_NAME, 'Wall.prototype._onDragLeftDrop', this._handleDragDrop.bind(this), 'WRAPPER');
+		libWrapper.register(ARCHITECT.MOD_NAME, 'Wall.prototype._onDragLeftDrop', function(this: Wall, wrapper: Function, event: PIXI.InteractionEvent) {
+			_this.currentWall = this;
+			_this._handleDragDrop(wrapper, event)
+		}, 'WRAPPER');
 		libWrapper.register(ARCHITECT.MOD_NAME, 'Wall.prototype._onDragLeftCancel', this._handleDragCancel.bind(this), 'WRAPPER');
 	}
 
@@ -67,20 +72,10 @@ class _WallAltDrop {
 		this._updateCircle(false);
 		// If Alt is not pressed, or no wall is bound, return
 		if (!event.data.originalEvent.altKey || (!wall && !object)) return;
-		if (wall) {
-			wall = await new Promise<Wall>((res, _) => {
-				var counter = 0;
-				const waiter = () => {
-					counter += 10;
-					if (wall.data._id === "preview") {
-						if (counter > 2000) res(undefined);
-						else setTimeout(waiter, 100);
-						return;
-					}
-					res(game.scenes.viewed.data.walls.find(x => x.id === (<Canvas>canvas).walls['last'].id).object as Wall);
-				}
-				setTimeout(waiter, 10);
-			});
+		if (!wall) {
+			let w = this.currentWall;
+			await sleep(100);
+			wall = w;
 		}
 		this._updateWallSnap(destination, fixed, event, wall);
 	}
@@ -127,6 +122,10 @@ class _WallAltDrop {
 		await wall.document.update(<any>{ c: coords });
 		return wall;
 	}
+}
+
+function sleep(ms: number) {
+	return new Promise(res => window.setTimeout(res, ms));
 }
 
 export const WallAltDrop = new _WallAltDrop();
